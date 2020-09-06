@@ -10,25 +10,28 @@
 	- User
 		- **`${user}-travisci-user`**
 			- attach policy **`AWSCodeDeployDeployerAccess`**
-			- inline policy **`travisci-codedeploy`**
-
-			```json
-			{
-			    "Version": "2012-10-17",
-			    "Statement": [
-			        {
-			            "Sid": "Stmt1493702920000",
-			            "Effect": "Allow",
-			            "Action": [
-			                "s3:*"
-			            ],
-			            "Resource": [
-			                "arn:aws:s3:::${user}-web-codedeploy/*"
-			            ]
-			        }
-			    ]
-			}
-			```
+			- <details>
+				<summary>inline policy **`travisci-codedeploy`**</summary>
+				
+				```json
+				{
+				    "Version": "2012-10-17",
+				    "Statement": [
+				        {
+				            "Sid": "Stmt1493702920000",
+				            "Effect": "Allow",
+				            "Action": [
+				                "s3:*"
+				            ],
+				            "Resource": [
+				                "arn:aws:s3:::${user}-web-codedeploy/*"
+				            ]
+				        }
+				    ]
+				}
+				```
+			</details>
+			
 			
 ### Github and Travis
 * Github
@@ -73,7 +76,43 @@
 	```
 	cp -R tutorial/* aws-lab/
 	```
-	- [generate .travis.yml](scripts/.travis.yml)
+	- <details>
+		<summary>[generate .travis.yml](scripts/.travis.yml)</summary>
+		
+		```yaml
+		language: php
+		os:
+		- linux
+		script: echo "do nothing."
+		before_deploy:
+		  - zip -r latest *
+		  - test -d dpl_cd_upload || mkdir dpl_cd_upload
+		  - mv latest.zip dpl_cd_upload/latest.zip
+		deploy:
+		  - provider: s3
+		    access_key_id: $aws_access_key
+		    secret_access_key:
+		      secure: $aws_secure_key
+		    local_dir: dpl_cd_upload
+		    skip_cleanup: true
+		    region: ap-northeast-1
+		    on:
+		      branch: master
+		    bucket: "${user}-web-codedeploy"
+		  - provider: codedeploy
+		    access_key_id: $aws_access_key
+		    secret_access_key:
+		      secure: $aws_secure_key
+		    bucket: "${user}-web-codedeploy"
+		    key: latest.zip
+		    application: ${user}-codedeploy-app
+		    deployment_group: In-place
+		    region: ap-northeast-1
+		    on:
+		      branch: master
+		```
+	</details>
+
 	- modify host.php
 
 	```php

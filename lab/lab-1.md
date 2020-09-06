@@ -11,8 +11,9 @@
 * ${user}-packer-role
 	- type: ec2
 	- attach policy **`AWSCodeDeployRole`**
-	- inline policy **`packer-build`**
-		
+	- <details>
+		<summary> inline policy **`packer-build`** </summary>
+	
 		```json
         {
           "Version": "2012-10-17",
@@ -56,9 +57,12 @@
           }]
         }
         ```
+        
+  </details>
 * ${user}-EC2-WEB
 	- type: ec2
-	- inline policy **`codedeploy-web-to-s3`**
+	- <details>
+		<summary>inline policy **`codedeploy-web-to-s3`**</summary>
 
 		```json
 		{
@@ -79,6 +83,7 @@
 		    ]
 		}
 		```
+		</details>
 		
 * Role-CodeDeploy
 	- type: codedeploy
@@ -97,12 +102,62 @@
 ### Build AMI
 * Instances
 	- **`${user}-workshop-packer`**
-* [install packer](scripts/packer_install.sh)
-* [generate packer_ami.sh](scripts/packer_ami.sh)
-* [generate packer.json](scripts/packer.json)
+
+* <details>
+	<summary>[install packer](scripts/packer_install.sh)</summary>
+	
+	```bash
+	#!/bin/bash
+	wget https://releases.hashicorp.com/packer/1.6.1/packer_1.6.1_linux_amd64.zip
+	unzip packer_1.6.1_linux_amd64.zip
+	```
+</details>
+
+* <details>
+	<summary>[generate packer_ami.sh](scripts/packer_ami.sh)</summary>
+	
+	```bash
+	#!/bin/bash
+	sudo yum -y update
+	sudo yum -y install php httpd ruby
+	sudo service httpd start
+	sudo chkconfig httpd on
+	
+	sudo echo "Hallo World" >> /var/www/html/index.html
+	
+	# auto install codedeploy agent be careful to setting aws region
+	wget https://aws-codedeploy-ap-northeast-1.s3.ap-northeast-1.amazonaws.com/latest/install
+	chmod +x ./install
+	sudo ./install auto
+	```
+</details>
+* <details>
+	<summary>[generate packer.json](scripts/packer.json)</summary>
+	
+	```json
+	{
+	  "builders": [
+	    {
+	      "type": "amazon-ebs",
+	      "region": "us-west-2",
+	      "source_ami": "這邊選用Amazon Linux 2 AMI (HVM)",
+	      "instance_type": "t2.micro",
+	      "ssh_username": "ec2-user",
+	      "ami_name": "packer {{timestamp}}"
+	    }
+	  ],
+	  "provisioners": [
+	    {
+	      "type": "shell",
+	      "script": "packer_ami.sh"
+	    }
+	  ]
+	}
+	```
+</details>
 * packer build AMI
 	
-	```
+	```bash
 	./packer build packer.json
 	```
 	
@@ -111,18 +166,67 @@
 	- **`${user}-workshop-packer`**
 * generate dir ./tutorial/htdoc
 
-	```
+	```bash
 	mkdir -p tutorial/htdoc tutorial/scripts
 	```
 
-* [genrate tutorial/appspec.yml](scripts/appspec.yml)
-* [genrate tutorial/htdoc/host.php](scripts/host.php)
-* [genrate tutorial/scripts/EraseApp.sh](scripts/EraseApp.sh)
-* [genrate tutorial/scripts/ServiceStop.sh](scripts/ServiceStop.sh)
-* [genrate tutorial/scripts/ServiceStart.sh](scripts/ServiceStart.sh)
+* <details>
+	<summary>[genrate tutorial/appspec.yml](scripts/appspec.yml)</summary>
+	
+	```yaml
+	version: 0.0
+	os: linux
+	files:
+	  - source: htdoc
+	    destination: /var/www/html
+	hooks:
+	  ApplicationStop:
+	    - location: scripts/ServiceStop.sh
+	      timeout: 180
+	  BeforeInstall:
+	    - location: scripts/EraseApp.sh
+	      timeout: 180
+	  ApplicationStart:
+	    - location: scripts/ServiceStart.sh
+	      timeout: 180
+	```
+</details>
+* <details>
+	<summary>[genrate tutorial/htdoc/host.php](scripts/host.php)</summary>
+	
+	```php
+	<?php
+	  echo gethostname();
+	?>
+	```
+</details>
+* <details>
+	<summary>[genrate tutorial/scripts/EraseApp.sh](scripts/EraseApp.sh)</summary>
+	
+	```bash
+	#!/bin/bash
+	rm -rf /var/www/html/*
+	```
+</details>
+* <details>
+	<summary>[genrate tutorial/scripts/ServiceStop.sh](scripts/ServiceStop.sh)</summary>
+	
+	```bash
+	#!/bin/bash
+	service httpd stop
+	```
+</details>
+* <details>
+	<summary>[genrate tutorial/scripts/ServiceStart.sh](scripts/ServiceStart.sh)</summary>
+	
+	```bash
+	#!/bin/bash
+	service httpd start
+	```
+</details>
 * check file
 
-	```
+	```bash
 	$ find tutorial/
 
 	tutorial/
@@ -134,7 +238,20 @@
 	tutorial/scripts/EraseApp.sh
 	tutorial/scripts/ServiceStop.sh
 	```
-* [zip tutorial to s3](scripts/tutorial-to-s3.sh)
+* <details>
+	<summary>[zip tutorial to s3](scripts/tutorial-to-s3.sh)</summary>
+	
+	```bash
+	#!/bin/bash
+	
+	# tutorial build to zip
+	cd tutorial;
+	zip -r tutorial.zip *
+	
+	aws configure
+	aws s3 cp tutorial.zip s3://[自己的 bucket name]
+	```
+</details>
 
 ### 建立LoadBalancers
 * TargetGroups
